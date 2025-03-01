@@ -1,0 +1,17 @@
+// This is your Prisma schema file
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Barcode {
+  id        String   @id @default(uuid())
+  title     String
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

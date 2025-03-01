@@ -8,7 +8,7 @@ import BarcodeTable from '@/components/BarcodeTable';
 import BarcodeSettingsModal from '@/components/BarcodeSettingsModal';
 import { BarcodeData, BarcodeSettings } from '@/types/barcode';
 import { exportToPDF } from '@/utils/pdfUtils';
-import { generateNumericCode, formatNumericCode } from '@/utils/numericCodeUtils';
+import { generateBarcodes, getBarcodes, deleteBarcode, deleteManyBarcodes, updateBarcodeTitle } from './actions';
 
 export default function Home() {
   const [barcodes, setBarcodes] = useState<BarcodeData[]>([]);
@@ -16,55 +16,54 @@ export default function Home() {
   const [form] = Form.useForm();
 
   useEffect(() => {
-    const savedBarcodes = localStorage.getItem('barcodes');
-    if (savedBarcodes) {
-      setBarcodes(JSON.parse(savedBarcodes));
-    }
+    const loadBarcodes = async () => {
+      const data = await getBarcodes();
+      setBarcodes(data);
+    };
+    loadBarcodes();
   }, []);
 
-  const saveBarcodes = (newBarcodes: BarcodeData[]) => {
-    setBarcodes(newBarcodes);
-    localStorage.setItem('barcodes', JSON.stringify(newBarcodes));
-  };
-
   const handleGenerate = async (values: { count: number }) => {
-    const { count } = values;
-    const newBarcodes: BarcodeData[] = [];
-    const startIndex = barcodes.length;
-
-    for (let i = 0; i < count; i++) {
-      const code = generateNumericCode();
-      newBarcodes.push({
-        id: `${Date.now()}-${i}`,
-        code: formatNumericCode(code),
-        title: `Title ${startIndex + i + 1}`,
-        createdAt: new Date().toISOString(),
-      });
+    try {
+      const { count } = values;
+      const newBarcodes = await generateBarcodes(count);
+      setBarcodes(prev => [...newBarcodes, ...prev]);
+      message.success(`Generated ${count} new barcodes`);
+    } catch (error) {
+      message.error('Failed to generate barcodes');
+      console.error(error);
     }
-
-    saveBarcodes([...barcodes, ...newBarcodes]);
-    message.success(`Generated ${count} new barcodes`);
   };
 
-  const handleDelete = (ids: string | string[]) => {
-    const newBarcodes = barcodes.filter(barcode => 
-      Array.isArray(ids) ? !ids.includes(barcode.id) : barcode.id !== ids
-    );
-    saveBarcodes(newBarcodes);
-    message.success(Array.isArray(ids) 
-      ? `${ids.length} barcodes deleted successfully`
-      : 'Barcode deleted successfully'
-    );
-  };
-
-  const handleTitleChange = (id: string, newTitle: string) => {
-    setBarcodes(prevBarcodes => {
-      const newBarcodes = prevBarcodes.map(barcode => 
-        barcode.id === id ? { ...barcode, title: newTitle } : barcode
+  const handleDelete = async (ids: string | string[]) => {
+    try {
+      if (Array.isArray(ids)) {
+        await deleteManyBarcodes(ids);
+        setBarcodes(prev => prev.filter(barcode => !ids.includes(barcode.id)));
+      } else {
+        await deleteBarcode(ids);
+        setBarcodes(prev => prev.filter(barcode => barcode.id !== ids));
+      }
+      message.success(Array.isArray(ids) 
+        ? `${ids.length} barcodes deleted successfully`
+        : 'Barcode deleted successfully'
       );
-      localStorage.setItem('barcodes', JSON.stringify(newBarcodes));
-      return newBarcodes;
-    });
+    } catch (error) {
+      message.error('Failed to delete barcode(s)');
+      console.error(error);
+    }
+  };
+
+  const handleTitleChange = async (id: string, newTitle: string) => {
+    try {
+      await updateBarcodeTitle(id, newTitle);
+      setBarcodes(prev => prev.map(barcode => 
+        barcode.id === id ? { ...barcode, title: newTitle } : barcode
+      ));
+    } catch (error) {
+      message.error('Failed to update title');
+      console.error(error);
+    }
   };
 
   const handleExportPDF = async (settings: BarcodeSettings) => {

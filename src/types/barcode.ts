@@ -1,7 +1,7 @@
 export interface BarcodeData {
   id: string;
   code: string;
-  createdAt: string;
+  createdAt: Date;
   title: string;
 }
 
