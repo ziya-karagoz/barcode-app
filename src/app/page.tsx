@@ -1,95 +1,129 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Button, InputNumber, Form, Space, message, Tabs } from 'antd';
+import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
+import BarcodeList from '@/components/BarcodeList';
+import BarcodeTable from '@/components/BarcodeTable';
+import BarcodeSettingsModal from '@/components/BarcodeSettingsModal';
+import { BarcodeData, BarcodeSettings } from '@/types/barcode';
+import { exportToPDF } from '@/utils/pdfUtils';
+import { generateNumericCode, formatNumericCode } from '@/utils/numericCodeUtils';
 
 export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [barcodes, setBarcodes] = useState<BarcodeData[]>([]);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [form] = Form.useForm();
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+  useEffect(() => {
+    const savedBarcodes = localStorage.getItem('barcodes');
+    if (savedBarcodes) {
+      setBarcodes(JSON.parse(savedBarcodes));
+    }
+  }, []);
+
+  const saveBarcodes = (newBarcodes: BarcodeData[]) => {
+    setBarcodes(newBarcodes);
+    localStorage.setItem('barcodes', JSON.stringify(newBarcodes));
+  };
+
+  const handleGenerate = async (values: { count: number }) => {
+    const { count } = values;
+    const newBarcodes: BarcodeData[] = [];
+    const startIndex = barcodes.length;
+
+    for (let i = 0; i < count; i++) {
+      const code = generateNumericCode();
+      newBarcodes.push({
+        id: `${Date.now()}-${i}`,
+        code: formatNumericCode(code),
+        title: `Title ${startIndex + i + 1}`,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    saveBarcodes([...barcodes, ...newBarcodes]);
+    message.success(`Generated ${count} new barcodes`);
+  };
+
+  const handleDelete = (ids: string | string[]) => {
+    const newBarcodes = barcodes.filter(barcode => 
+      Array.isArray(ids) ? !ids.includes(barcode.id) : barcode.id !== ids
+    );
+    saveBarcodes(newBarcodes);
+    message.success(Array.isArray(ids) 
+      ? `${ids.length} barcodes deleted successfully`
+      : 'Barcode deleted successfully'
+    );
+  };
+
+  const handleTitleChange = (id: string, newTitle: string) => {
+    setBarcodes(prevBarcodes => {
+      const newBarcodes = prevBarcodes.map(barcode => 
+        barcode.id === id ? { ...barcode, title: newTitle } : barcode
+      );
+      localStorage.setItem('barcodes', JSON.stringify(newBarcodes));
+      return newBarcodes;
+    });
+  };
+
+  const handleExportPDF = async (settings: BarcodeSettings) => {
+    try {
+      await exportToPDF(barcodes, {...settings, textyoffset: 5});
+      message.success('PDF exported successfully');
+      setIsSettingsModalOpen(false);
+    } catch (error) {
+      message.error('Failed to export PDF');
+      console.error(error);
+    }
+  };
+
+  const items = [
+    {
+      key: 'cards',
+      label: 'Card View',
+      children: <BarcodeList barcodes={barcodes} onDelete={handleDelete} onTitleChange={handleTitleChange} />,
+    },
+    {
+      key: 'table',
+      label: 'Table View',
+      children: <BarcodeTable barcodes={barcodes} onDelete={handleDelete} onTitleChange={handleTitleChange} />,
+    },
+  ];
+
+  return (
+    <div className="p-8 flex flex-col gap-8">
+      <h1 className="text-2xl font-bold mb-8">Barcode Generator & PDF Export</h1>
+      <Form form={form} onFinish={handleGenerate} layout="inline" className="mb-8">
+        <Form.Item
+          name="count"
+          rules={[{ required: true, message: 'Please enter the number of barcodes' }]}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <InputNumber min={1} max={100} placeholder="Number of barcodes" />
+        </Form.Item>
+        <Form.Item>
+          <Space>
+            <Button type="primary" icon={<PlusOutlined />} htmlType="submit">
+              Generate Barcodes
+            </Button>
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={() => setIsSettingsModalOpen(true)}
+              disabled={barcodes.length === 0}
+            >
+              Export to PDF
+            </Button>
+          </Space>
+        </Form.Item>
+      </Form>
+      
+      <Tabs items={items} defaultActiveKey="cards" />
+      
+      <BarcodeSettingsModal
+        open={isSettingsModalOpen}
+        onCancel={() => setIsSettingsModalOpen(false)}
+        onSubmit={handleExportPDF}
+      />
     </div>
   );
 }
