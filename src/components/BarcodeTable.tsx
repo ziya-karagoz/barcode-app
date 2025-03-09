@@ -1,9 +1,11 @@
 import { Table, Dropdown, Modal, Input, Button } from 'antd';
 import { BarcodeData } from '@/types/barcode';
-import { EllipsisOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
-import { useState, useCallback, useMemo } from 'react';
+import { EllipsisOutlined, DeleteOutlined, SearchOutlined, PrinterOutlined } from '@ant-design/icons';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import type { ColumnsType } from 'antd/es/table';
 import type { TablePaginationConfig } from 'antd/es/table';
+import { useReactToPrint } from 'react-to-print';
+import PrintableBarcode from './PrintableBarcode';
 
 interface BarcodeTableProps {
   barcodes: BarcodeData[];
@@ -18,12 +20,43 @@ export default function BarcodeTable({ barcodes, onDelete, onTitleChange }: Barc
   const [tempTitle, setTempTitle] = useState('');
   const [searchText, setSearchText] = useState('');
   const [isMultiDelete, setIsMultiDelete] = useState(false);
+  const [printingBarcode, setPrintingBarcode] = useState<BarcodeData | null>(null);
+  const printComponentRef = useRef<HTMLDivElement>(null);
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
     pageSize: 10,
     showSizeChanger: true,
     showTotal: (total) => `Total ${total} items`,
   });
+
+  const handlePrint = useReactToPrint({
+    documentTitle: 'Print Barcode',
+    onAfterPrint: () => setPrintingBarcode(null),
+    contentRef: printComponentRef,
+    pageStyle: `
+      @page {
+        size: 40mm 20mm landscape !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      @media print {
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 40mm !important;
+          height: 20mm !important;
+        }
+        * {
+          box-sizing: border-box !important;
+        }
+      }
+    `,
+  });
+
+  const handlePrintBarcode = useCallback((barcode: BarcodeData) => {
+    setPrintingBarcode(barcode);
+    setTimeout(handlePrint, 100);
+  }, [handlePrint]);
 
   const handleSearch = useCallback((value: string) => {
     setSearchText(value);
@@ -144,6 +177,12 @@ export default function BarcodeTable({ barcodes, onDelete, onTitleChange }: Barc
           menu={{
             items: [
               {
+                key: 'print',
+                icon: <PrinterOutlined />,
+                label: 'Print',
+                onClick: () => handlePrintBarcode(record),
+              },
+              {
                 key: 'delete',
                 icon: <DeleteOutlined />,
                 label: 'Delete',
@@ -159,7 +198,7 @@ export default function BarcodeTable({ barcodes, onDelete, onTitleChange }: Barc
         </Dropdown>
       ),
     },
-  ], [editingTitle, handleSingleDeleteClick, handleTitleBlur, handleTitleClick, tempTitle]);
+  ], [editingTitle, handleSingleDeleteClick, handleTitleBlur, handleTitleClick, tempTitle, handlePrintBarcode]);
 
   return (
     <>
@@ -205,6 +244,15 @@ export default function BarcodeTable({ barcodes, onDelete, onTitleChange }: Barc
             : "Are you sure you want to delete this barcode? This action cannot be undone."}
         </p>
       </Modal>
+      {/* Hidden print component */}
+      <div>
+        {printingBarcode && (
+          <PrintableBarcode
+            ref={printComponentRef}
+            code={printingBarcode.code}
+          />
+        )}
+      </div>
     </>
   );
 }
