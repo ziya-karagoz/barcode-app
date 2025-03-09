@@ -1,25 +1,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Button, InputNumber, Form, Space, message, Tabs } from 'antd';
-import { DownloadOutlined, PrinterOutlined, PlusOutlined } from '@ant-design/icons';
-import BarcodeList from '@/components/BarcodeList';
+import { Button, InputNumber, Form, Space, message } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import BarcodeTable from '@/components/BarcodeTable';
-import BarcodeSettingsModal from '@/components/BarcodeSettingsModal';
-import { BarcodeData, BarcodeSettings } from '@/types/barcode';
-import { exportToPDF, printBarcodes } from '@/utils/pdfUtils';
+import { BarcodeData } from '@/types/barcode';
 import { generateBarcodes, getBarcodes, deleteBarcode, deleteManyBarcodes, updateBarcodeTitle } from './actions';
 
 export default function Home() {
   const [barcodes, setBarcodes] = useState<BarcodeData[]>([]);
-  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
     const loadBarcodes = async () => {
       const data = await getBarcodes();
-      setBarcodes(data);
+      // Convert Date objects to ISO strings for BarcodeData compatibility
+      const formattedData = data.map(barcode => ({
+        ...barcode,
+        createdAt: new Date(barcode.createdAt).toISOString()
+      }));
+      setBarcodes(formattedData);
     };
     loadBarcodes();
   }, []);
@@ -28,7 +28,12 @@ export default function Home() {
     try {
       const { count } = values;
       const newBarcodes = await generateBarcodes(count);
-      setBarcodes(prev => [...newBarcodes, ...prev]);
+      // Convert Date objects to ISO strings for new barcodes
+      const formattedBarcodes = newBarcodes.map(barcode => ({
+        ...barcode,
+        createdAt: new Date(barcode.createdAt).toISOString()
+      }));
+      setBarcodes(prev => [...formattedBarcodes, ...prev]);
       message.success(`Generated ${count} new barcodes`);
     } catch (error) {
       message.error('Failed to generate barcodes');
@@ -67,39 +72,7 @@ export default function Home() {
     }
   };
 
-  const handleExportPDF = async (settings: BarcodeSettings) => {
-    try {
-      await exportToPDF(barcodes, {...settings, textyoffset: 5, paperSize: '40mm'});
-      message.success('PDF exported successfully');
-      setIsExportModalOpen(false);
-    } catch (error) {
-      message.error('Failed to export PDF');
-      console.error(error);
-    }
-  };
-
-  const handlePrint = async (settings: BarcodeSettings) => {
-    try {
-      printBarcodes(barcodes, settings);
-      setIsPrintModalOpen(false);
-    } catch (error) {
-      message.error('Failed to print barcodes');
-      console.error(error);
-    }
-  };
-
-  const items = [
-    {
-      key: 'cards',
-      label: 'Card View',
-      children: <BarcodeList barcodes={barcodes} onDelete={handleDelete} onTitleChange={handleTitleChange} />,
-    },
-    {
-      key: 'table',
-      label: 'Table View',
-      children: <BarcodeTable barcodes={barcodes} onDelete={handleDelete} onTitleChange={handleTitleChange} />,
-    },
-  ];
+  
 
   return (
     <div className="p-8 flex flex-col gap-8">
@@ -116,41 +89,12 @@ export default function Home() {
             <Button type="primary" icon={<PlusOutlined />} htmlType="submit">
               Generate Barcodes
             </Button>
-            <Button
-              icon={<PrinterOutlined />}
-              onClick={() => setIsPrintModalOpen(true)}
-              disabled={barcodes.length === 0}
-            >
-              Print Barcodes
-            </Button>
-            <Button
-              icon={<DownloadOutlined />}
-              onClick={() => setIsExportModalOpen(true)}
-              disabled={barcodes.length === 0}
-            >
-              Export to PDF
-            </Button>
           </Space>
         </Form.Item>
       </Form>
       
-      <Tabs items={items} defaultActiveKey="cards" />
+      <BarcodeTable barcodes={barcodes} onDelete={handleDelete} onTitleChange={handleTitleChange} />
       
-      <BarcodeSettingsModal
-        open={isPrintModalOpen}
-        onCancel={() => setIsPrintModalOpen(false)}
-        onSubmit={handlePrint}
-        barcodes={barcodes}
-        mode="print"
-      />
-
-      <BarcodeSettingsModal
-        open={isExportModalOpen}
-        onCancel={() => setIsExportModalOpen(false)}
-        onSubmit={handleExportPDF}
-        barcodes={barcodes}
-        mode="export"
-      />
     </div>
   );
 }

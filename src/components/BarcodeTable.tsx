@@ -64,7 +64,7 @@ export default function BarcodeTable({ barcodes, onDelete, onTitleChange }: Barc
     if (currentPageItemCount <= (isMultiDelete ? selectedRows.length : 1) && pagination.current! > 1) {
       setPagination(prev => ({ ...prev, current: 1 }));
     }
-  }, [filteredBarcodes, isMultiDelete, onDelete, pagination.current, pagination.pageSize, selectedRows]);
+  }, [filteredBarcodes, isMultiDelete, onDelete, pagination, selectedRows]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteModalVisible(false);
@@ -202,8 +202,7 @@ export default function BarcodeTable({ barcodes, onDelete, onTitleChange }: Barc
         <p>
           {isMultiDelete
             ? `Are you sure you want to delete ${selectedRows.length} selected barcodes? This action cannot be undone.`
-            : "Are you sure you want to delete this barcode? This action cannot be undone."
-          }
+            : "Are you sure you want to delete this barcode? This action cannot be undone."}
         </p>
       </Modal>
     </>
