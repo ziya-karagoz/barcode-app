@@ -57,11 +57,14 @@ export default function BarcodeTable({ barcodes, onDelete, onTitleChange }: Barc
     setSelectedRows([]);
     setIsMultiDelete(false);
 
+    // Calculate current page item count
+    const startIndex = ((pagination.current || 1) - 1) * (pagination.pageSize || 10);
+    const currentPageItemCount = filteredBarcodes.slice(startIndex, startIndex + (pagination.pageSize || 10)).length;
 
     if (currentPageItemCount <= (isMultiDelete ? selectedRows.length : 1) && pagination.current! > 1) {
       setPagination(prev => ({ ...prev, current: 1 }));
     }
-  }, [filteredBarcodes.length, isMultiDelete, onDelete, pagination.current, pagination.pageSize, selectedRows]);
+  }, [filteredBarcodes, isMultiDelete, onDelete, pagination.current, pagination.pageSize, selectedRows]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteModalVisible(false);

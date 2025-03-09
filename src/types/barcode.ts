@@ -12,4 +12,5 @@ export interface BarcodeSettings {
   quietZone: number;
   fontSize: number;
   textyoffset: number;
+  selectedBarcodes?: string[];
 }

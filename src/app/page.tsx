@@ -2,17 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { Button, InputNumber, Form, Space, message, Tabs } from 'antd';
-import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
+import { DownloadOutlined, PrinterOutlined, PlusOutlined } from '@ant-design/icons';
 import BarcodeList from '@/components/BarcodeList';
 import BarcodeTable from '@/components/BarcodeTable';
 import BarcodeSettingsModal from '@/components/BarcodeSettingsModal';
 import { BarcodeData, BarcodeSettings } from '@/types/barcode';
-import { exportToPDF } from '@/utils/pdfUtils';
+import { exportToPDF, printBarcodes } from '@/utils/pdfUtils';
 import { generateBarcodes, getBarcodes, deleteBarcode, deleteManyBarcodes, updateBarcodeTitle } from './actions';
 
 export default function Home() {
   const [barcodes, setBarcodes] = useState<BarcodeData[]>([]);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -68,11 +69,21 @@ export default function Home() {
 
   const handleExportPDF = async (settings: BarcodeSettings) => {
     try {
-      await exportToPDF(barcodes, {...settings, textyoffset: 5});
+      await exportToPDF(barcodes, {...settings, textyoffset: 5, paperSize: '40mm'});
       message.success('PDF exported successfully');
-      setIsSettingsModalOpen(false);
+      setIsExportModalOpen(false);
     } catch (error) {
       message.error('Failed to export PDF');
+      console.error(error);
+    }
+  };
+
+  const handlePrint = async (settings: BarcodeSettings) => {
+    try {
+      printBarcodes(barcodes, settings);
+      setIsPrintModalOpen(false);
+    } catch (error) {
+      message.error('Failed to print barcodes');
       console.error(error);
     }
   };
@@ -92,7 +103,7 @@ export default function Home() {
 
   return (
     <div className="p-8 flex flex-col gap-8">
-      <h1 className="text-2xl font-bold mb-8">Barcode Generator & PDF Export</h1>
+      <h1 className="text-2xl font-bold mb-8">Barcode Generator & Print</h1>
       <Form form={form} onFinish={handleGenerate} layout="inline" className="mb-8">
         <Form.Item
           name="count"
@@ -106,8 +117,15 @@ export default function Home() {
               Generate Barcodes
             </Button>
             <Button
+              icon={<PrinterOutlined />}
+              onClick={() => setIsPrintModalOpen(true)}
+              disabled={barcodes.length === 0}
+            >
+              Print Barcodes
+            </Button>
+            <Button
               icon={<DownloadOutlined />}
-              onClick={() => setIsSettingsModalOpen(true)}
+              onClick={() => setIsExportModalOpen(true)}
               disabled={barcodes.length === 0}
             >
               Export to PDF
@@ -119,9 +137,19 @@ export default function Home() {
       <Tabs items={items} defaultActiveKey="cards" />
       
       <BarcodeSettingsModal
-        open={isSettingsModalOpen}
-        onCancel={() => setIsSettingsModalOpen(false)}
+        open={isPrintModalOpen}
+        onCancel={() => setIsPrintModalOpen(false)}
+        onSubmit={handlePrint}
+        barcodes={barcodes}
+        mode="print"
+      />
+
+      <BarcodeSettingsModal
+        open={isExportModalOpen}
+        onCancel={() => setIsExportModalOpen(false)}
         onSubmit={handleExportPDF}
+        barcodes={barcodes}
+        mode="export"
       />
     </div>
   );

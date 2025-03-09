@@ -1,16 +1,20 @@
-import { Modal, Form, Switch, InputNumber } from 'antd';
-import { BarcodeSettings } from '@/types/barcode';
+import { Modal, Form, Switch, InputNumber, Table } from 'antd';
+import { BarcodeSettings, BarcodeData } from '@/types/barcode';
 
 interface BarcodeSettingsModalProps {
   open: boolean;
   onCancel: () => void;
   onSubmit: (settings: BarcodeSettings) => void;
+  barcodes: BarcodeData[];
+  mode: 'print' | 'export';
 }
 
 export default function BarcodeSettingsModal({
   open,
   onCancel,
   onSubmit,
+  barcodes,
+  mode,
 }: BarcodeSettingsModalProps) {
   const [form] = Form.useForm();
 
@@ -20,24 +24,45 @@ export default function BarcodeSettingsModal({
     });
   };
 
+  const columns = [
+    {
+      title: 'Code',
+      dataIndex: 'code',
+      key: 'code',
+    },
+    {
+      title: 'Title',
+      dataIndex: 'title',
+      key: 'title',
+    },
+  ];
+
+  const initialValues = mode === 'print' ? {
+    fixedSize: true,
+    narrowBarWidth: 2,
+    height: 12,
+    quietZone: 1,
+    fontSize: 3,
+  } : {
+    fixedSize: true,
+    narrowBarWidth: 2,
+    height: 100,
+    quietZone: 10,
+    fontSize: 12,
+  };
+
   return (
     <Modal
-      title="Barcode PDF Settings"
+      title={mode === 'print' ? "Print Barcodes" : "Export Barcodes"}
       open={open}
       onCancel={onCancel}
       onOk={handleOk}
+      width={800}
     >
       <Form
         form={form}
         layout="vertical"
-        initialValues={{
-          fixedSize: true,
-          narrowBarWidth: 2,
-          height: 100,
-          quietZone: 10,
-          fontSize: 12,
-          dpi: 300,
-        }}
+        initialValues={initialValues}
       >
         <Form.Item
           label="Fixed Size"
@@ -60,7 +85,7 @@ export default function BarcodeSettingsModal({
           name="height"
           rules={[{ required: true }]}
         >
-          <InputNumber min={50} max={300} />
+          <InputNumber min={mode === 'print' ? 8 : 50} max={mode === 'print' ? 16 : 300} />
         </Form.Item>
 
         <Form.Item
@@ -68,7 +93,7 @@ export default function BarcodeSettingsModal({
           name="quietZone"
           rules={[{ required: true }]}
         >
-          <InputNumber min={0} max={50} />
+          <InputNumber min={0} max={mode === 'print' ? 2 : 50} />
         </Form.Item>
 
         <Form.Item
@@ -76,15 +101,27 @@ export default function BarcodeSettingsModal({
           name="fontSize"
           rules={[{ required: true }]}
         >
-          <InputNumber min={8} max={24} />
+          <InputNumber min={mode === 'print' ? 2 : 8} max={mode === 'print' ? 4 : 24} />
         </Form.Item>
 
         <Form.Item
-          label="DPI"
-          name="dpi"
-          rules={[{ required: true }]}
+          label="Select Barcodes"
+          name="selectedBarcodes"
+          rules={[{ required: true, message: 'Please select at least one barcode' }]}
         >
-          <InputNumber min={72} max={600} />
+          <Table
+            rowSelection={{
+              type: 'checkbox',
+              onChange: (selectedRowKeys) => {
+                form.setFieldValue('selectedBarcodes', selectedRowKeys);
+              },
+            }}
+            columns={columns}
+            dataSource={barcodes.map(b => ({ ...b, key: b.id }))}
+            size="small"
+            pagination={false}
+            scroll={{ y: 240 }}
+          />
         </Form.Item>
       </Form>
     </Modal>
